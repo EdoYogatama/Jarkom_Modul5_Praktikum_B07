@@ -1,0 +1,87 @@
+# Switch
+uml_switch -unix switch1 > /dev/null < /dev/null &
+uml_switch -unix switch2 > /dev/null < /dev/null &
+uml_switch -unix switch3 > /dev/null < /dev/null &
+uml_switch -unix switch4 > /dev/null < /dev/null &
+uml_switch -unix switch5 > /dev/null < /dev/null &
+uml_switch -unix switch6 > /dev/null < /dev/null &
+
+# Router
+xterm -T SURABAYA -e linux ubd0=SURABAYA,jarkom umid=SURABAYA eth0=tuntap,,,10.151.74.33 eth1=daemon,,,switch3 eth2=daemon,,,switch4 mem=96M &
+xterm -T BATU -e linux ubd0=BATU,jarkom umid=BATU eth0=daemon,,,switch3 eth1=daemon,,,switch2 eth2=daemon,,,switch5 mem=96M &
+xterm -T KEDIRI -e linux ubd0=KEDIRI,jarkom umid=KEDIRI eth0=daemon,,,switch4 eth1=daemon,,,switch1 eth2=daemon,,,switch6 mem=96M &
+
+# Server
+xterm -T MALANG -e linux ubd0=MALANG,jarkom umid=MALANG eth0=daemon,,,switch2 mem=128M &
+xterm -T MOJOKERTO -e linux ubd0=MOJOKERTO,jarkom umid=MOJOKERTO eth0=daemon,,,switch2 mem=128M &
+xterm -T MADIUN -e linux ubd0=MADIUN,jarkom umid=MADIUN eth0=daemon,,,switch1 mem=128M &
+xterm -T PROBOLINGGO -e linux ubd0=PROBOLINGGO,jarkom umid=PROBOLINGGO eth0=daemon,,,switch1 mem=128M &
+
+# Klien
+xterm -T SIDOARJO -e linux ubd0=SIDOARJO,jarkom umid=SIDOARJO eth0=daemon,,,switch5 mem=96M &
+xterm -T GRESIK -e linux ubd0=GRESIK,jarkom umid=GRESIK eth0=daemon,,,switch6 mem=96M &
+
+# ---------------- SURABAYA -----------------------
+#route
+route add -net 192.168.0.0 netmask 255.255.254.0 gw 192.168.2.2
+route add -net 192.168.4.0 netmask 255.255.255.0 gw 192.168.5.2
+route add -net 10.151.83.64 netmask 255.255.255.248 gw 192.168.5.2
+
+#no1
+iptables -t nat -A POSTROUTING -s 192.168.0.0/16 -o eth0 -j SNAT --to-source 10.151.74.34
+
+#no2
+iptables -A FORWARD -p tcp --dport -d 10.151.83.64/29 -i eth0 -j DROP
+
+#no6
+iptables -A PREROUTING -t nat -p tcp -d 192.168.1.15 --dport 80 -m statistic --mode nth --every 2 --packet 0 -j DNAT --to-destination 192.168.1.2
+iptables -A PREROUTING -t nat -p tcp -d 192.168.1.15 --dport 80 -j DNAT --to-destination 192.168.1.3
+iptables -t nat -A POSTROUTING -p tcp --dport 80 -d 192.168.1.2 -j SNAT --to-source 192.168.1.15
+iptables -t nat -A POSTROUTING -p tcp --dport 80 -d 192.168.1.3 -j SNAT --to-source 192.168.1.15
+
+#no7
+iptables -N LOGGING
+...
+iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "SSH Refused : " --log-level 4
+iptables -A LOGGING -j DROP
+
+# ---------------- MOJOKERTO ----------------
+#no3
+iptables -A INPUT -p icmp -m conlimit --conlimit-above 3 --conlimit-mask 0 -j REJECT
+
+#no7
+iptables -N LOGGING
+...
+iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "SSH Refused : " --log-level 4
+iptables -A LOGGING -j DROP
+
+# ---------------- MALANG ----------------
+#no3
+iptables -A INPUT -p icmp -m conlimit --conlimit-above 3 --conlimit-mask 0 -j REJECT
+
+#no4
+iptables -A INPUT -s 192.168.4.0/24 -m time --weekdays Sat,Sun -j REJECT
+iptables -A INPUT -s 192.168.4.0/24 -m time --timestart 07:00 --timestop 17:00 --weekdays Mon,Tue,Wed,Thu,Fri -j ACCEPT
+iptables -A INPUT -s 192.168.4.0/24 -m time --timestart 17:01 --timestop 00:00 --weekdays Mon,Tue,Wed,Thu,Fri -j REJECT
+iptables -A INPUT -s 192.168.4.0/24 -m time --timestart 00:01 --timestop 06:59 --weekdays Mon,Tue,Wed,Thu,Fri -j REJECT
+
+#no5
+iptables -A INPUT -s 192.168.4.0/24 -m time --timestart 17:00 --timestop 00:00 -j ACCEPT
+iptables -A INPUT -s 192.168.4.0/24 -m time --timestart 00:01 --timestop 07:00 -j ACCEPT
+iptables -A INPUT -s 192.168.4.0/24 -m time --timestart 07:01 --timestop 16:59 -j REJECT
+
+#no7
+iptables -N LOGGING
+...
+iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "SSH Refused : " --log-level 4
+iptables -A LOGGING -j DROP
+
+# SIDOARJO
+# nano /etc/network/interfaces
+auto eth0
+iface eth0 inet dhcp
+
+# GRESIK
+# nano /etc/network/interfaces
+auto eth0
+iface eth0 inet dhcp
