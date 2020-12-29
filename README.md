@@ -98,7 +98,30 @@ iptables -A INPUT -s 192.168.4.0/24 -m time --timestart 07:01 --timestop 16:59 -
 ```
 
 ### 6. Karena kita memiliki 2 buah WEB Server, Bibah ingin SURABAYA disetting sehingga setiap request dari client yang mengakses DNS Server akan didistribusikan secara bergantian pada PROBOLINGGO port 80 dan MADIUN port 80.
+* lakukan `apt-get update` di malang
+* install bind 9 di malang dengan `apt-get install bind9 -y`
+* buka `/etc/bind/named.conf.local`
+* konfigurasi domain jarkom2020.com
+```
+zone "jarkom2020.com" {
+	type master;
+	file "/etc/bind/jarkom/jarkom2020.com";
+};
+```
+* buat folder jarkom dengan `mkdir /etc/bind/jarkom`
+* copy file dengan `cp /etc/bind/db.local /etc/bind/jarkom/jarkom2020.com`
+* buka `/etc/bind/jarkom/jarkom2020.com`
+* konfigurasi domain jarkom2020.com dan masukan ip tujuan dalam hal ini kami menggunakan 192.168.1.15 sebagai ip tujuan.
+* lakukan service bind9 restart
+* install apache2 pada web server madiun dan probolinggo dengan `apt-get install apache2`
+* Kemudian setelah melakukan setting pada DNS dan webserver, kita lakukan iptables pada surabaya
+```
+iptables -A PREROUTING -t nat -p tcp -d 192.168.1.15 --dport 80 -m statistic --mode nth --every 2 --packet 0 -j DNAT --to-destination 192.168.1.2
+iptables -A PREROUTING -t nat -p tcp -d 192.168.1.15 --dport 80 -j DNAT --to-destination 192.168.1.3
+iptables -t nat -A POSTROUTING -p tcp --dport 80 -d 192.168.1.2 -j SNAT --to-source 192.168.1.15
+iptables -t nat -A POSTROUTING -p tcp --dport 80 -d 192.168.1.3 -j SNAT --to-source 192.168.1.15
 
+```
 
 ### 7. Bibah ingin agar semua paket didrop oleh firewall (dalam topologi) tercatat dalam log pada setiap UML yang memiliki aturan drop.
 
